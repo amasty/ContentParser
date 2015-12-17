@@ -1,0 +1,10 @@
+{
+    "habrahabr.ru": {
+        "title": {"tag": "span", "class": "post_title"},
+        "content": {"tag": "div", "class": "content"}
+    },
+    "lenta.ru" : {
+        "title": {"tag": "h1", "class": "b-topic__title"},
+        "content": {"tag": "div", "class": "b-text"}
+    }
+}
