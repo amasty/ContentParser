@@ -20,10 +20,10 @@ ContentParser.py http://example.com/
 
 Формат JSON. Задается домен, тег класс, в котором хранится основной контент.
 
-'''
+```
     "%domain%" : {
         "title": {"tag": "%tag%", "class": "%class%"},
         "content": {"tag": "%tag%", "class": "%class%"}
     }
-'''
+```
 
