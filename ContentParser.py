@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import gzip
 import re
@@ -12,7 +13,11 @@ class ContentFinder:
         self.config = config
 
     def get_source_page(self, url):
-        res = urllib.request.urlopen(url)
+        try:
+            res = urllib.request.urlopen(url)
+
+        except:
+            print('Its not a real url or website is unavailable')
 
         full_page = res.read()
         if res.headers.get('Content-Encoding', 'identity') == 'gzip':
@@ -148,15 +153,34 @@ def load_config():
     return config
 
 
+def check_url_config(url, config):
+        domain = urllib.parse.urlparse(url)[1]
+
+        try:
+            config[domain]
+            return True
+        except:
+            return False
+
+
 if __name__ == '__main__':
     base_dir = os.path.dirname(__file__)
     config = load_config()
-    url = 'http://habrahabr.ru/post/257287/'
 
-    ContentFinder = ContentFinder(config)
-    ContentFormater = ContentFormater()
-    ContentSaver = ContentSaver()
+    if len(sys.argv) > 1:
+        url = sys.argv[1]
 
-    title, soup_content = ContentFinder.get_soup(url)
-    content, img_list = ContentFormater.format(title, soup_content)
-    ContentSaver.save(title, content, img_list, base_dir)
+        if check_url_config(url, config):
+            ContentFinder = ContentFinder(config)
+            ContentFormater = ContentFormater()
+            ContentSaver = ContentSaver()
+
+            title, soup_content = ContentFinder.get_soup(url)
+            content, img_list = ContentFormater.format(title, soup_content)
+            ContentSaver.save(title, content, img_list, base_dir)
+
+        else:
+            print('Please add to config this website')
+
+    else:
+        print('Please enter the url. Example usage: ' + (os.path.basename(__file__)) + ' http://example.com/')
