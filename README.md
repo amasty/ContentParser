@@ -13,4 +13,4 @@ Test task for Tenzor.
 - добавить эврестический поиск текста, уйти от жесткого задания конфига
 
 Использование:
-ContentParser.py http://example.com/
+- ContentParser.py http://example.com/
