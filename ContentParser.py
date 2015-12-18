@@ -51,19 +51,19 @@ class ContentFormater:
         formated_content = title
         formated_content += str(soup_content)
 
-        formated_content, img_list = self.format_images(formated_content, images)
-        formated_content = self.format_link(formated_content, links)
+        formated_content, img_list = self.images(formated_content, images)
+        formated_content = self.links(formated_content, links)
         formated_content = self.remove_tags(formated_content)
 
         formated_content = re.sub(r'^[ \t]+', '', formated_content, flags=re.M)
         formated_content = re.sub('[\r]', '\n', formated_content, flags=re.M)
         formated_content = re.sub('[\n]{2,}', '\n', formated_content, flags=re.M)
 
-        formated_content = self.format_string_limit(formated_content)
+        formated_content = self.string_limit(formated_content)
 
         return str(formated_content), img_list
 
-    def format_images(self, content, images):
+    def images(self, content, images):
         img_list = []
 
         for image in images:
@@ -72,7 +72,7 @@ class ContentFormater:
 
         return content, img_list
 
-    def format_link(self, content, links):
+    def links(self, content, links):
         for link in links:
             try:
                 formated_link = '[' + link.get('href') + ']' + link.get_text()
@@ -86,7 +86,7 @@ class ContentFormater:
     def remove_tags(self, content):
         return BeautifulSoup(content, 'html.parser').get_text()
 
-    def format_string_limit(self, content):
+    def string_limit(self, content):
         paragraphs = content.split('\n')
         new_content = ''
 

@@ -13,4 +13,17 @@ Test task for Tenzor.
 - добавить эврестический поиск текста, уйти от жесткого задания конфига
 
 Использование:
-- ContentParser.py http://example.com/
+
+ContentParser.py http://example.com/
+
+Конфиг:
+
+Формат JSON. Задается домен, тег класс, в котором хранится основной контент.
+
+'''
+    "%domain%" : {
+        "title": {"tag": "%tag%", "class": "%class%"},
+        "content": {"tag": "%tag%", "class": "%class%"}
+    }
+'''
+
