@@ -1,23 +1,29 @@
-import os
-import sys
-import json
-import gzip
 import re
-import urllib.request
+import os
+import gzip
+import logging
+import argparse
 import urllib.parse
+import urllib.request
+
 from bs4 import BeautifulSoup
 
 
 class ContentFinder:
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, source_page):
+        self._source_page = source_page
+        self._soup = BeautifulSoup(self._source_page, 'html.parser')
+        self.content = None
 
-    def get_source_page(self, url):
+    @classmethod
+    def from_url(cls, url):
+        logging.debug("opening page: {}".format(url))
+
         try:
             res = urllib.request.urlopen(url)
 
         except:
-            print('Its not a real url or website is unavailable')
+            raise RuntimeError("Its not a real url or website is unavailable")
 
         full_page = res.read()
         if res.headers.get('Content-Encoding', 'identity') == 'gzip':
@@ -26,161 +32,174 @@ class ContentFinder:
         charset = res.headers.get_content_charset('utf-8')
         source_page = full_page.decode(charset)
 
-        return source_page
+        return cls(source_page)
 
-    def find(self, config, raw_html):
-        soup = BeautifulSoup(raw_html, 'html.parser')
+    def find_content(self):
+        divs = self._soup.find_all('div')
 
-        soup_content = soup.find(config['content']['tag'], config['content']['class'])
-        soup_title = soup.find(config['title']['tag'], config['title']['class'])
+        only_text = []
+        for div in divs:
+            if div.find('div') is not None:
+                only_text.append('')
 
-        return soup_title.get_text(), soup_content
+            else:
+                only_text.append(div.get_text())
 
-    def get_soup(self, url):
-        source_page = self.get_source_page(url)
-        domain = urllib.parse.urlparse(url)[1]
+        main_content = max(only_text, key=len)
 
-        return self.find(self.config[domain], source_page)
+        index = only_text.index(main_content)
+        self.content = divs[index]
+
+        return self.content
+
+    def find_title(self):
+        return self._soup.find('title').get_text()
+
+    def find_images(self):
+        if self.content is None:
+            raise RuntimeError("At first you should find content")
+
+        images = self.content.find_all('img')
+
+        return images
 
 
 class ContentFormater:
-    def format(self, title, soup_content):
-        images = soup_content.find_all('img')
-        links = soup_content.find_all('a')
+    def __init__(self, title, content):
+        self._title = title
+        self._content = content
+        self.formated_content = str(content)
 
-        formated_content = title
-        formated_content += str(soup_content)
-
-        formated_content, img_list = self.images(formated_content, images)
-        formated_content = self.links(formated_content, links)
-        formated_content = self.remove_tags(formated_content)
-
-        formated_content = re.sub(r'^[ \t]+', '', formated_content, flags=re.M)
-        formated_content = re.sub('[\r]', '\n', formated_content, flags=re.M)
-        formated_content = re.sub('[\n]{2,}', '\n', formated_content, flags=re.M)
-
-        formated_content = self.string_limit(formated_content)
-
-        return str(formated_content), img_list
-
-    def images(self, content, images):
-        img_list = []
+    def format_images(self):
+        images = self._content.find_all('img')
 
         for image in images:
-            content = re.sub(str(image), '[' + image['src'] + ']', content)
-            img_list.append(image['src'])
+            self.formated_content = self.formated_content.replace(str(image), '[{}]'.format(image['src']))
 
-        return content, img_list
+    def format_links(self):
+        links = self._content.find_all('a')
 
-    def links(self, content, links):
         for link in links:
-            try:
-                formated_link = '[' + link.get('href') + ']' + link.get_text()
-            except:
-                formated_link = ''
+            href = link.get('href', None)
 
-            content = re.sub(str(link), formated_link, content)
+            if href is not None:
+                format_link = '[{}]{}'.format(link.get('href'), link.get_text())
 
-        return content
+            else:
+                format_link = ''
 
-    def remove_tags(self, content):
-        return BeautifulSoup(content, 'html.parser').get_text()
+            self.formated_content = self.formated_content.replace(str(link), format_link)
 
-    def string_limit(self, content):
-        paragraphs = content.split('\n')
-        new_content = ''
+    def remove_html_tags(self):
+        self.formated_content = BeautifulSoup(self.formated_content, 'html.parser').get_text()
+
+    def format_string_limit(self):
+        paragraphs = self.formated_content.split('\n')
+        _content = str()
 
         while paragraphs:
             paragraph = paragraphs.pop(0)
             words = paragraph.split(' ')
 
-            if len(words) == 1:
-                word = words.pop(0)
-                new_content+= word
-
-            count = 0
+            length = 0
             while words:
                 word = words.pop(0)
-                count += len(word) + 1
+                length += len(word) + 1
 
                 if len(word) > 79:
-                    new_content += '\n' + word + '\n'
-                    count = 0
+                    _content += '\n {} \n'.format(word)
+                    length = 0
 
-                elif count > 79:
-                    new_content += '\n' + word + ' '
-                    count = len(word) + 1
+                elif length > 79:
+                    _content += '\n {} '.format(word)
+                    length = len(word) + 1
 
                 else:
-                    new_content += word + ' '
+                    _content += ' {}'.format(word)
 
-            if len(paragraphs) != 1:
-                new_content += '\n\n'
+            _content += '\n'
 
-        return new_content
+        self.formated_content = _content
+
+    def remove_garbage(self):
+        self.formated_content = re.sub(r'^[ \t]+', '', self.formated_content, flags=re.M)
+        self.formated_content = re.sub('[\r]', '\n', self.formated_content, flags=re.M)
+        self.formated_content = re.sub('[\n]{2,}', '\n', self.formated_content, flags=re.M)
+
+    def format(self):
+        self.format_images()
+        self.format_links()
+        self.remove_html_tags()
+        self.remove_garbage()
+        self.formated_content = '{}\n\n{}'.format(self._title, self.formated_content)
+        self.format_string_limit()
+
+        return self.formated_content
 
 
 class ContentSaver:
-    def save(self, title, content, img_list=None, base_dir=''):
-        self.write(title, content, base_dir)
+    base_dir = os.path.dirname(__file__)
 
-        if img_list:
-            self.dowloand_images(img_list, os.path.join(base_dir, title))
+    def __init__(self, title, content,  dir=None, images=None):
+        self._title = title
+        self._content = content
+        self._dir = dir
+        self._images = images
 
-    def dowloand_images(self, images, dir='.'):
-        if dir:
-            os.makedirs(dir, exist_ok=True)
+    def save(self):
+        self._check_title()
 
-        for image in images:
-            name = image.split('/')[-1]
-            with open(os.path.join(dir, '%s' % name), 'wb') as f:
-                download_img = urllib.request.urlopen(image)
-                f.write(download_img.read())
+        if self._dir is None:
+            self._dir = os.path.join(self.base_dir, 'output', self._title)
 
-    def write(self, title, content, base_dir=''):
-        if base_dir:
-            os.makedirs(base_dir, exist_ok=True)
+        logging.debug("saving content to: {}".format(self._dir))
+        os.makedirs(self._dir, exist_ok=True)
 
-        with open(os.path.join(base_dir, title + '.txt'), 'w') as f:
-            f.write(content)
+        self._write()
 
+        if self._images is not None:
+            self._dowloand_images()
 
-def load_config():
-    f = open(os.path.join(os.path.dirname(__file__), 'config'), 'r')
-    config = f.read()
-    config = json.loads(config)
+    def _check_title(self):
+        # \/:*?"<>|
+        self._title = re.sub('\\\|\/|:|\*|"|<|>\||\?', '', self._title)
+        self._title = self._title[0:255]
 
-    return config
+    def _write(self):
+        file_name = '{}.txt'.format(self._title)
 
+        with open(os.path.join(self._dir, file_name), 'w') as f:
+            f.write(self._content)
 
-def check_url_config(url, config):
-        domain = urllib.parse.urlparse(url)[1]
+    def _dowloand_images(self):
+        for image in self._images:
+            name = image.get('src').split('/')[-1]
 
-        try:
-            config[domain]
-            return True
-        except:
-            return False
+            with open(os.path.join(self._dir, name), 'wb') as f:
+                logging.debug("dowloading image: {}".format(image.get('src')))
+                image_content = urllib.request.urlopen(image.get('src'))
+                f.write(image_content.read())
 
 
 if __name__ == '__main__':
-    base_dir = os.path.dirname(__file__)
-    config = load_config()
+    logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=10)
 
-    if len(sys.argv) > 1:
-        url = sys.argv[1]
+    arg_parser = argparse.ArgumentParser()
 
-        if check_url_config(url, config):
-            ContentFinder = ContentFinder(config)
-            ContentFormater = ContentFormater()
-            ContentSaver = ContentSaver()
+    arg_parser.add_argument('-u', '--url', help="url with content, example: http://example.com/page.html")
+    arg_parser.add_argument('-d', '--dir', help="dir to save content")
+    args = arg_parser.parse_args()
 
-            title, soup_content = ContentFinder.get_soup(url)
-            content, img_list = ContentFormater.format(title, soup_content)
-            ContentSaver.save(title, content, img_list, base_dir)
+    if args.url is None:
+        exit("Define an url. Example: -u http://example.com/ Use -h or --help for more options")
 
-        else:
-            print('Please add to config this website')
+    content_finder = ContentFinder.from_url(args.url)
+    content = content_finder.find_content()
+    title = content_finder.find_title()
 
-    else:
-        print('Please enter the url. Example usage: ' + (os.path.basename(__file__)) + ' http://example.com/')
+    content_formater = ContentFormater(title, content)
+    formated_content = content_formater.format()
+
+    images = content_finder.find_images()
+    content_saver = ContentSaver(title, formated_content, dir=args.dir, images=images)
+    content_saver.save()
