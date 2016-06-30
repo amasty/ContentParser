@@ -10,20 +10,15 @@ Test task for Tenzor.
 - удаление всех тегов html
 
 Что можно улучшить:
-- добавить эврестический поиск текста, уйти от жесткого задания конфига
+- больше проверок на оценку текста
+- больше методов поиска текста
 
 Использование:
 
-ContentParser.py http://example.com/
+run.py -u http://example.com/
 
-Конфиг:
-
-Формат JSON. Задается домен, тег класс, в котором хранится основной контент.
-
-```
-    "%domain%" : {
-        "title": {"tag": "%tag%", "class": "%class%"},
-        "content": {"tag": "%tag%", "class": "%class%"}
-    }
-```
+Список проверенных страниц:
+https://habrahabr.ru/post/304434/
+http://ria.ru/syria/20160630/1455091290.html
+http://gmbox.ru/overwatch/overwatch-iz-zari-sdelali-lgbt-ikonu
 
