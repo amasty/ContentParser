@@ -30,7 +30,7 @@ class Saver:
             self._dowloand_images()
 
     def _check_title(self):
-        # \/:*?"<>|
+        # remove unallowed chars \/:*?"<>|
         self._title = re.sub('[\\|\/|:|\*|"|<|>\||\?]', '', self._title)
         self._title = self._title[0:255]
 

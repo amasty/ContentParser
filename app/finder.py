@@ -54,18 +54,18 @@ class Finder:
         self.content = content
 
     def _find_block_with_most_used_el(self, tag):
-        paragraphs = self._soup.find_all(tag)
+        els = self._soup.find_all(tag)
 
-        el_with_paragraph = []
-        for paragraph in paragraphs:
-            el_with_paragraph.append(paragraph.parent)
+        blocks = []
+        for el in els:
+            blocks.append(el.parent)
 
-        count_paragraphs = []
-        for el in el_with_paragraph:
-            count_paragraphs.append(len(el.find_all(tag)))
+        count = []
+        for el in blocks:
+            count.append(len(el.find_all(tag)))
 
-        index = count_paragraphs.index(max(count_paragraphs))
-        content = el_with_paragraph[index]
+        max_index = count.index(max(count))
+        content = blocks[max_index]
 
         return content
 

@@ -7,7 +7,7 @@ class Formater:
     def __init__(self, title, content):
         self._title = title
         self._content = content
-        self.formated_content = str(content)
+        self.formated_content = None
 
     def format_images(self):
         images = self._content.find_all('img')
@@ -66,6 +66,8 @@ class Formater:
         self.formated_content = re.sub('[\n]{2,}', '\n', self.formated_content, flags=re.M)
 
     def format(self):
+        self.formated_content = str(self._content)
+
         self.format_images()
         self.format_links()
         self.remove_html_tags()
@@ -74,4 +76,7 @@ class Formater:
         self.format_string_limit()
 
     def get(self):
+        if self.formated_content is None:
+            raise RuntimeError("Format content before")
+
         return self.formated_content
